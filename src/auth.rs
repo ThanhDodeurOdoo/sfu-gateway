@@ -48,13 +48,6 @@ impl std::error::Error for AuthError {}
 pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
     use tracing::debug;
 
-    debug!(token_len = token.len(), "Verifying JWT");
-    debug!(
-        key_len = gateway_key.len(),
-        key_preview = &gateway_key[..gateway_key.len().min(10)],
-        "Using gateway key"
-    );
-
     // Decode the base64 key (Odoo uses base64-decoded key for HMAC)
     let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(gateway_key.trim_end_matches('='))
@@ -65,20 +58,7 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
         })
         .map_err(|e| AuthError::InvalidToken(format!("invalid key encoding: {e}")))?;
 
-    debug!(key_bytes_len = key_bytes.len(), "Decoded key bytes");
-
     let key = DecodingKey::from_secret(&key_bytes);
-
-    // Parse the token header to see what algorithm it uses
-    if let Some(dot_pos) = token.find('.') {
-        if let Ok(header_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .decode(token[..dot_pos].trim_end_matches('='))
-        {
-            if let Ok(header_str) = std::str::from_utf8(&header_bytes) {
-                debug!(header = header_str, "JWT header");
-            }
-        }
-    }
 
     let token_data = decode::<Claims>(token, &key, &Validation::default()).map_err(|e| {
         debug!(error = %e, "JWT decode failed");
@@ -92,7 +72,6 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
 /// Sign claims with the SFU's secret key.
 /// The key should be base64-encoded (matching SFU's format).
 pub fn sign(claims: &Claims, sfu_key: &str) -> Result<String, AuthError> {
-    // Decode the base64 key
     let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(sfu_key.trim_end_matches('='))
         .or_else(|_| base64::engine::general_purpose::STANDARD.decode(sfu_key))
@@ -118,8 +97,8 @@ mod tests {
     use super::*;
 
     // Base64-encoded test keys (32 random bytes each)
-    const TEST_KEY: &str = "dGVzdC1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0NTY="; // "test-secret-key-12345678901234567"
-    const WRONG_KEY: &str = "d3JvbmctdGVzdC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc="; // "wrong-test-key-12345678901234567"
+    const TEST_KEY: &str = "dGVzdC1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0NTY=";
+    const WRONG_KEY: &str = "d3JvbmctdGVzdC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc=";
 
     fn make_test_claims() -> Claims {
         Claims {
@@ -166,8 +145,8 @@ mod tests {
 
     #[test]
     fn test_resign_with_different_key() {
-        let gateway_key = "Z2F0ZXdheS1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0"; // base64
-        let sfu_key = "c2Z1LXNlY3JldC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc4"; // base64
+        let gateway_key = "Z2F0ZXdheS1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0";
+        let sfu_key = "c2Z1LXNlY3JldC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc4";
 
         // Odoo signs with gateway key
         let claims = make_test_claims();
