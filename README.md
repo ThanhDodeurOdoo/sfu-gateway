@@ -83,9 +83,9 @@ SFU_GATEWAY_KEY="your-gateway-key" cargo run -- --secrets secrets.toml
 
 ## API
 
-### `GET /health`
+### `GET /noop`
 
-Health check endpoint. Returns `{ "status": "ok" }`.
+ Returns `{ "status": "ok" }`.
 
 ### `GET /v1/channel`
 

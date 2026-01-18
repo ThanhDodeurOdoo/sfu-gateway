@@ -86,7 +86,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .route("/health", web::get().to(handlers::health))
+            .route("/noop", web::get().to(handlers::noop))
             .route("/v1/channel", web::get().to(handlers::channel))
     })
     .bind(&bind_addr)?

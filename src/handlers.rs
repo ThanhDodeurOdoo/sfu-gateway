@@ -6,7 +6,6 @@ use tracing::{debug, info, warn};
 use crate::auth;
 use crate::balancer::Balancer;
 
-/// Shared application state
 pub struct AppState {
     pub balancer: Balancer,
     pub http_client: reqwest::Client,
@@ -58,8 +57,7 @@ fn get_forwarded_for(req: &HttpRequest) -> String {
     build_forwarded_for(&client_ip, existing)
 }
 
-/// Health check endpoint
-pub async fn health() -> HttpResponse {
+pub async fn noop() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({ "status": "ok" }))
 }
 

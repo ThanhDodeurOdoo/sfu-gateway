@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// JWT claims structure matching the SFU's expected format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    /// Issuer - identifies the caller (Odoo channel UUID)
+    /// Issuer - identifies the caller (the sfu uses it for channel generation idempotency)
     pub iss: String,
     /// Optional encryption key for recording
     #[serde(skip_serializing_if = "Option::is_none")]
