@@ -12,7 +12,7 @@ If the `?region=` query parameter is provided, the gateway filters to SFUs match
 GET /v1/channel?region=eu-west
 ```
 
-Only SFUs configured with `region = "eu-west"` in `secrets.toml` will be considered.
+Only SFUs configured with `region = "eu-west"` (in `secrets.toml` or `SFU_GATEWAY_NODES`) will be considered.
 
 If no SFUs match the requested region, the gateway falls back to all available SFUs.
 
@@ -34,7 +34,7 @@ flowchart TD
 
 ## Configuration
 
-Each SFU in `secrets.toml` can have an optional region:
+Each SFU in the configuration (`secrets.toml` or `SFU_GATEWAY_NODES`) can have an optional region:
 
 ```toml
 [[sfu]]

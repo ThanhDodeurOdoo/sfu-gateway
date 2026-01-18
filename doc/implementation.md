@@ -60,9 +60,11 @@ export PROXY=true
    export SFU_GATEWAY_KEY="gateway-secret-key"  # Same as ODOO_SFU_KEY
    export SFU_GATEWAY_PORT="8071"               # Optional, default 8071
    export SFU_GATEWAY_BIND="0.0.0.0"            # Optional, default 0.0.0.0
+   # Optional: JSON string of SFUs (overrides secrets.toml)
+   export SFU_GATEWAY_NODES='{"sfu": [{"address": "http://sfu1:3000", "key": "key1"}]}'
    ```
 
-2. Create `secrets.toml` with your SFU entries:
+2. Create `secrets.toml` with your SFU entries (if not using `SFU_GATEWAY_NODES`):
    ```toml
    [[sfu]]
    address = "http://sfu1.example.com:8070"
@@ -84,6 +86,33 @@ export PROXY=true
    ```bash
    ./sfu-gateway --secrets secrets.toml
    ```
+
+### Using Environment Variable for Nodes
+
+For containerized environments (like Docker/Kubernetes), you can avoid using a secrets file by passing the SFU configuration as a JSON string:
+
+```bash
+export SFU_GATEWAY_NODES='{
+  "sfu": [
+    {
+      "address": "http://sfu1.example.com:8070",
+      "region": "eu-west",
+      "key": "sfu1-secret-key"
+    },
+    {
+      "address": "http://sfu2.example.com:8070",
+      "region": "us-east",
+      "key": "sfu2-secret-key"
+    }
+  ]
+}'
+
+./sfu-gateway
+```
+
+> [!TIP]
+> `SFU_GATEWAY_NODES` takes precedence over the `--secrets` command-line argument.
+
 
 ## How It Works
 

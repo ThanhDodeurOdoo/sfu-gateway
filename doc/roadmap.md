@@ -34,6 +34,7 @@ Periodically poll SFUs to determine their availability and current load.
 
 3. **Configuration**
    ```toml
+   # Added to secrets.toml or passed via SFU_GATEWAY_NODES
    [health]
    interval_seconds = 10
    timeout_seconds = 5

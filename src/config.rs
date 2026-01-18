@@ -18,6 +18,7 @@ impl GatewayConfig {
     /// - `SFU_GATEWAY_BIND` - Address to bind (default: "0.0.0.0")
     /// - `SFU_GATEWAY_PORT` - Port to listen on (default: 8071)
     /// - `SFU_GATEWAY_KEY` - JWT secret key (required)
+    /// - `SFU_GATEWAY_NODES` - JSON string of SFU nodes (optional)
     pub fn from_env() -> Result<Self, ConfigError> {
         let bind = std::env::var("SFU_GATEWAY_BIND").unwrap_or_else(|_| "0.0.0.0".to_string());
 
