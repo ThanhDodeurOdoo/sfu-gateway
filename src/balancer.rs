@@ -36,9 +36,9 @@ impl Balancer {
         }
     }
 
-    pub fn sfu_count(&self) -> usize {
-        self.sfus.len()
-    }
+    ///pub fn sfu_count(&self) -> usize {
+    ///    self.sfus.len()
+    ///}
 
     /// Select an SFU instance based on optional region hint.
     ///

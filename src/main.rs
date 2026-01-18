@@ -11,7 +11,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::balancer::Balancer;
-use crate::config::{GatewayConfig, SecretsFile};
+use crate::config::{GatewayConfig, NodeData};
 use crate::handlers::AppState;
 
 #[derive(Parser, Debug)]
@@ -37,20 +37,29 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(1);
     });
 
-    // Load secrets file
-    let secrets = SecretsFile::load(&args.secrets).unwrap_or_else(|e| {
-        eprintln!("Error loading secrets file: {}", e);
-        std::process::exit(1);
-    });
+    // Load secrets: prioritize environment variable JSON over local file
+    let nodes = if let Some(nodes_json) = gateway.nodes {
+        info!("Loading SFU nodes from environment variable");
+        NodeData::from_json(&nodes_json).unwrap_or_else(|e| {
+            eprintln!("Error parsing SFU nodes from environment: {}", e);
+            std::process::exit(1);
+        })
+    } else {
+        info!("Loading SFU nodes from file: {}", args.secrets);
+        NodeData::load(&args.secrets).unwrap_or_else(|e| {
+            eprintln!("Error loading secrets file: {}", e);
+            std::process::exit(1);
+        })
+    };
 
     info!(
         bind = %gateway.bind,
         port = gateway.port,
-        sfu_count = secrets.sfu.len(),
+        sfu_count = nodes.sfu.len(),
         "Starting SFU Gateway"
     );
 
-    for sfu in &secrets.sfu {
+    for sfu in &nodes.sfu {
         info!(
             address = %sfu.address,
             region = ?sfu.region,
@@ -59,7 +68,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     let state = Arc::new(AppState {
-        balancer: Balancer::new(secrets.sfu),
+        balancer: Balancer::new(nodes.sfu),
         http_client: reqwest::Client::new(),
         gateway_key: gateway.key,
     });

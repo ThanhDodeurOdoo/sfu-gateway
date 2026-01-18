@@ -22,15 +22,33 @@ Odoo ──JWT(gateway_key)──▶ Gateway ──JWT(sfu_key)──▶ SFU
 
 ### Environment Variables
 
-| Variable           | Default    | Description                            |
-| ------------------ | ---------- | -------------------------------------- |
-| `SFU_GATEWAY_BIND` | `0.0.0.0`  | Address to bind                        |
-| `SFU_GATEWAY_PORT` | `8071`     | Port to listen on                      |
-| `SFU_GATEWAY_KEY`  | (required) | JWT key for verifying tokens from Odoo |
+| Variable            | Default    | Description                            |
+| ------------------- | ---------- | -------------------------------------- |
+| `SFU_GATEWAY_BIND`  | `0.0.0.0`  | Address to bind                        |
+| `SFU_GATEWAY_PORT`  | `8071`     | Port to listen on                      |
+| `SFU_GATEWAY_KEY`   | (required) | JWT key for verifying tokens from Odoo |
+| `SFU_GATEWAY_NODES` | (optional) | JSON string of SFU nodes (see below)   |
+
+
+### JSON Configuration (Environment Variable)
+
+For containerized environments where files are not preferred, you can pass the SFU list as a JSON string:
+
+```bash
+export SFU_GATEWAY_NODES='{
+  "sfu": [
+    {
+      "address": "http://sfu1.example.com",
+      "region": "eu-west",
+      "key": "secret-key"
+    }
+  ]
+}'
+```
 
 ### Secrets File
 
-SFU entries are stored in a secrets file (default: `secrets.toml`):
+As a less safe alternative, you can use a secret.toml file (default: `secrets.toml`):
 
 ```toml
 [[sfu]]
@@ -44,7 +62,7 @@ region = "us-east"
 key = "sfu2-secret-key"
 ```
 
-⚠️ **Security**: Protect this file with `chmod 600 secrets.toml`
+The gateway prioritizes `SFU_GATEWAY_NODES` over the `secrets.toml` file.
 
 ## Quick Start
 

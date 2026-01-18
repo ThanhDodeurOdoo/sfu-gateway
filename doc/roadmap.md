@@ -172,3 +172,4 @@ Since the SFU already runs in proxy mode behind nginx, it already trusts and par
 - **Geographic Latency**: Factor in client-to-SFU latency measurements
 - **Capacity Reservation**: Reserve headroom on each SFU for sudden spikes
 - **Auto-scaling Integration**: Notify orchestrator when capacity is low
+- **Secure and Scalable cross server**: make SFUs contact the gateway to register themselves.
