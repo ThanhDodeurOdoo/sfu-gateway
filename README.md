@@ -81,6 +81,6 @@ Create a channel on an SFU.
 
 ## Documentation
 
-- [Integration Guide](doc/integration.md) - How to deploy between Odoo and SFUs
+- [Implementation Guide](doc/implementation.md) - How to deploy between Odoo and SFUs
 - [Load Balancing](doc/load_balancing.md) - Server selection strategy and region hints
 - [Roadmap](doc/roadmap.md) - Future features and improvements

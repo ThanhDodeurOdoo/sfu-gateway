@@ -44,7 +44,14 @@ That's it. Odoo doesn't need to know it's talking to a gateway.
 
 ### On Each SFU
 
-No changes required. Each SFU keeps its existing `AUTH_KEY` configuration.
+Each SFU must be running in **proxy mode** to correctly read the original client IP from forwarded headers:
+
+```bash
+export PROXY=true
+```
+
+> [!IMPORTANT]
+> Without `PROXY=true`, the SFU will see the gateway's IP instead of Odoo's IP, breaking `/v1/disconnect` validation.
 
 ### On the Gateway
 

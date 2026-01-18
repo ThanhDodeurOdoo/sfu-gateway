@@ -138,49 +138,32 @@ Handle partial failures and overload scenarios gracefully.
 
 ---
 
-## Phase 4: Disconnect Refactoring
+## Phase 4: Disconnect Support
 
 ### Problem
 
-The current `/v1/disconnect` endpoint verifies requests by matching the caller's IP address against the channel's `remoteAddress`. With the gateway architecture, all requests originate from the gateway's IP, breaking this validation.
+The current `/v1/disconnect` endpoint verifies requests by matching the caller's IP address against the channel's `remoteAddress`. With the gateway architecture, all requests originate from the gateway's IP.
 
 ### Solution
 
-Switch from address-based to **channel-key-only** authentication:
+The gateway properly forwards the `X-Forwarded-For` header with the original Odoo IP.
 
-1. **Channel Key Exchange**  
-   During `/v1/channel`, Odoo passes a `key` claim in the JWT. This key is stored with the channel and is the **sole** proof of ownership.
+The SFU's `extractRequestInfo` function (in `utils.ts`) reads the **first** IP from `X-Forwarded-For` when in proxy mode. So the gateway must **prepend** the original client IP:
 
-2. **Odoo Signs with Channel Key**  
-   For each channel with sessions to disconnect, Odoo signs a JWT using that channel's key.
-
-3. **SFU Validation**  
-   The SFU verifies the JWT signature using the channel's stored key. No `iss` or address matching — the valid signature alone proves ownership.
-
-### New Request Format
-
-`POST /v1/disconnect`
-
-Body is a map of channel UUIDs to signed JWTs:
-
-```json
-{
-  "31dcc5dc-4d26-453e-9bca-ab1f5d268303": "<JWT signed with channel1 key>",
-  "a2b3c4d5-1234-5678-90ab-cdef12345678": "<JWT signed with channel2 key>"
-}
+```
+X-Forwarded-For: <original-odoo-ip>, <gateway-ip>, ...
+                  ↑ SFU reads this one
 ```
 
-Each JWT payload contains the sessions to disconnect:
+Implementation:
+1. Read incoming `X-Forwarded-For` header (if present)
+2. Prepend the original client IP
+3. Forward the modified header to the SFU
 
-```json
-{
-  "sessionIds": ["session1", "session2"],
-  "exp": 1234567890
-}
-```
+Since the SFU already runs in proxy mode behind nginx, it already trusts and parses `X-Forwarded-For`.
 
-> [!IMPORTANT]
-> This is a breaking change for the SFU's `/v1/disconnect` endpoint and requires coordination between SFU and Odoo updates.
+> [!NOTE]
+> No breaking changes required — the SFU's existing proxy mode handles this transparently.
 
 ---
 

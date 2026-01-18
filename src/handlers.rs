@@ -32,6 +32,32 @@ pub struct ChannelResponse {
     pub url: String,
 }
 
+/// Build X-Forwarded-For header value by prepending client IP to existing chain.
+/// Pure function for testability.
+fn build_forwarded_for(client_ip: &str, existing: Option<&str>) -> String {
+    match existing {
+        Some(chain) => format!("{}, {}", client_ip, chain),
+        None => client_ip.to_string(),
+    }
+}
+
+/// Extract X-Forwarded-For components from HttpRequest and build the header.
+/// The SFU reads the first IP from this header (when in proxy mode).
+fn get_forwarded_for(req: &HttpRequest) -> String {
+    let client_ip = req
+        .connection_info()
+        .realip_remote_addr()
+        .unwrap_or("unknown")
+        .to_string();
+
+    let existing = req
+        .headers()
+        .get("X-Forwarded-For")
+        .and_then(|h| h.to_str().ok());
+
+    build_forwarded_for(&client_ip, existing)
+}
+
 /// Health check endpoint
 pub async fn health() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({ "status": "ok" }))
@@ -118,11 +144,12 @@ pub async fn channel(
         sfu_url.push_str(&query_parts.join("&"));
     }
 
-    // Make the request to the SFU with re-signed JWT
+    // Make the request to the SFU with re-signed JWT and forwarded client IP
     let request = state
         .http_client
         .get(&sfu_url)
-        .header("Authorization", format!("Bearer {}", sfu_token));
+        .header("Authorization", format!("Bearer {}", sfu_token))
+        .header("X-Forwarded-For", get_forwarded_for(&req));
 
     match request.send().await {
         Ok(response) => {
@@ -153,5 +180,29 @@ pub async fn channel(
             HttpResponse::BadGateway()
                 .json(serde_json::json!({ "error": "failed to contact SFU" }))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_forwarded_for_no_existing() {
+        let result = build_forwarded_for("192.168.1.100", None);
+        assert_eq!(result, "192.168.1.100");
+    }
+
+    #[test]
+    fn test_build_forwarded_for_with_existing() {
+        let result = build_forwarded_for("192.168.1.100", Some("10.0.0.1"));
+        assert_eq!(result, "192.168.1.100, 10.0.0.1");
+    }
+
+    #[test]
+    fn test_build_forwarded_for_with_chain() {
+        // Gateway receives request that already went through another proxy
+        let result = build_forwarded_for("192.168.1.100", Some("10.0.0.1, 172.16.0.1"));
+        assert_eq!(result, "192.168.1.100, 10.0.0.1, 172.16.0.1");
     }
 }
