@@ -100,3 +100,24 @@ export PROXY=true
 - **WebSocket bypass**: Only `/channel` goes through gateway; WebSocket traffic goes direct
 - **Per-SFU keys**: Each SFU can have its own unique key
 - **Region routing**: Optional `?region=eu-west` query param for geo-routing
+
+## Intermediate Proxies (Nginx)
+
+If there are reverse proxies (e.g., nginx) between the gateway and SFUs, they must be configured to **pass through** the `X-Forwarded-For` header for `/v1/channel`:
+
+```nginx
+location /v1/channel {
+    # Pass through the header chain from the gateway
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_pass http://sfu-backend;
+}
+
+location / {
+    # Other routes remain client-facing (replace header with socket IP)
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_pass http://sfu-backend;
+}
+```
+
+> [!NOTE]
+> The gateway only handles `/v1/channel`. Other routes like `/v1/disconnect` are called directly by Odoo and should remain client-facing (using `$remote_addr`).

@@ -1,6 +1,6 @@
 # SFU Gateway
 
-A Rust HTTP server that acts as a gateway/load-balancer for multiple SFU instances.
+A Rust HTTP server that acts as a gateway/load-balancer for multiple [SFU](https://github.com/odoo/sfu) instances.
 
 ## Overview
 
