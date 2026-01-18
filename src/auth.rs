@@ -80,12 +80,7 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
         }
     }
 
-    // Allow some clock skew and don't require exp for flexibility
-    let mut validation = Validation::default();
-    validation.required_spec_claims.clear();
-    validation.validate_exp = false;
-
-    let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
+    let token_data = decode::<Claims>(token, &key, &Validation::default()).map_err(|e| {
         debug!(error = %e, "JWT decode failed");
         AuthError::InvalidToken(e.to_string())
     })?;
@@ -130,7 +125,14 @@ mod tests {
         Claims {
             iss: "test-channel-123".to_string(),
             key: Some("encryption-key".to_string()),
-            exp: None,
+            // Expire in 1 hour
+            exp: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600,
+            ),
             iat: None,
         }
     }
