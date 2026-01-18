@@ -27,7 +27,7 @@ impl GatewayConfig {
             .parse::<u16>()
             .map_err(|e| ConfigError::Env {
                 var: "SFU_GATEWAY_PORT".to_string(),
-                message: format!("invalid port: {}", e),
+                message: format!("invalid port: {e}"),
             })?;
 
         let key = std::env::var("SFU_GATEWAY_KEY").map_err(|_| ConfigError::Env {
@@ -55,7 +55,7 @@ pub struct NodeData {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SfuConfig {
-    /// The base URL of the SFU (e.g., "http://sfu1.example.com:3000")
+    /// The base URL of the SFU (e.g., `http://sfu1.example.com:3000`)
     pub address: String,
     /// Geographic region identifier (e.g., "eu-west", "us-east")
     #[serde(default)]
@@ -96,12 +96,12 @@ impl std::fmt::Display for ConfigError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConfigError::Io { path, source } => {
-                write!(f, "failed to read file '{}': {}", path, source)
+                write!(f, "failed to read file '{path}': {source}")
             }
-            ConfigError::Toml(e) => write!(f, "failed to parse TOML config: {}", e),
-            ConfigError::Json(e) => write!(f, "failed to parse JSON config: {}", e),
+            ConfigError::Toml(e) => write!(f, "failed to parse TOML config: {e}"),
+            ConfigError::Json(e) => write!(f, "failed to parse JSON config: {e}"),
             ConfigError::Env { var, message } => {
-                write!(f, "environment variable {}: {}", var, message)
+                write!(f, "environment variable {var}: {message}")
             }
         }
     }

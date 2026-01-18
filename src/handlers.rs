@@ -36,12 +36,12 @@ pub struct ChannelResponse {
 /// Pure function for testability.
 fn build_forwarded_for(client_ip: &str, existing: Option<&str>) -> String {
     match existing {
-        Some(chain) => format!("{}, {}", client_ip, chain),
+        Some(chain) => format!("{client_ip}, {chain}"),
         None => client_ip.to_string(),
     }
 }
 
-/// Extract X-Forwarded-For components from HttpRequest and build the header.
+/// Extract X-Forwarded-For components from `HttpRequest` and build the header.
 /// The SFU reads the first IP from this header (when in proxy mode).
 fn get_forwarded_for(req: &HttpRequest) -> String {
     let client_ip = req
@@ -104,13 +104,10 @@ pub async fn channel(
     info!(iss = %claims.iss, "Verified JWT from Odoo");
 
     // 2. Select an SFU based on region hint
-    let sfu = match state.balancer.select(query.region.as_deref()) {
-        Some(sfu) => sfu,
-        None => {
-            warn!("No SFU instances available");
-            return HttpResponse::ServiceUnavailable()
-                .json(serde_json::json!({ "error": "no SFU instances available" }));
-        }
+    let Some(sfu) = state.balancer.select(query.region.as_deref()) else {
+        warn!("No SFU instances available");
+        return HttpResponse::ServiceUnavailable()
+            .json(serde_json::json!({ "error": "no SFU instances available" }));
     };
 
     info!(sfu_address = %sfu.address, "Selected SFU");
@@ -131,7 +128,7 @@ pub async fn channel(
     // Forward query parameters (except region which is gateway-specific)
     let mut query_parts = Vec::new();
     if let Some(ref web_rtc) = query.web_rtc {
-        query_parts.push(format!("webRTC={}", web_rtc));
+        query_parts.push(format!("webRTC={web_rtc}"));
     }
     if let Some(ref recording_address) = query.recording_address {
         query_parts.push(format!(
@@ -148,7 +145,7 @@ pub async fn channel(
     let request = state
         .http_client
         .get(&sfu_url)
-        .header("Authorization", format!("Bearer {}", sfu_token))
+        .header("Authorization", format!("Bearer {sfu_token}"))
         .header("X-Forwarded-For", get_forwarded_for(&req));
 
     match request.send().await {

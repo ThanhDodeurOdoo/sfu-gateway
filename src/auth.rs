@@ -35,8 +35,8 @@ impl std::fmt::Display for AuthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AuthError::MissingToken => write!(f, "missing authorization token"),
-            AuthError::InvalidToken(e) => write!(f, "invalid token: {}", e),
-            AuthError::SigningFailed(e) => write!(f, "failed to sign token: {}", e),
+            AuthError::InvalidToken(e) => write!(f, "invalid token: {e}"),
+            AuthError::SigningFailed(e) => write!(f, "failed to sign token: {e}"),
         }
     }
 }
@@ -63,7 +63,7 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
             // Try standard base64 if URL-safe fails
             base64::engine::general_purpose::STANDARD.decode(gateway_key)
         })
-        .map_err(|e| AuthError::InvalidToken(format!("invalid key encoding: {}", e)))?;
+        .map_err(|e| AuthError::InvalidToken(format!("invalid key encoding: {e}")))?;
 
     debug!(key_bytes_len = key_bytes.len(), "Decoded key bytes");
 
@@ -101,7 +101,7 @@ pub fn sign(claims: &Claims, sfu_key: &str) -> Result<String, AuthError> {
     let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(sfu_key.trim_end_matches('='))
         .or_else(|_| base64::engine::general_purpose::STANDARD.decode(sfu_key))
-        .map_err(|e| AuthError::SigningFailed(format!("invalid key encoding: {}", e)))?;
+        .map_err(|e| AuthError::SigningFailed(format!("invalid key encoding: {e}")))?;
 
     let key = EncodingKey::from_secret(&key_bytes);
     encode(&Header::default(), claims, &key).map_err(|e| AuthError::SigningFailed(e.to_string()))

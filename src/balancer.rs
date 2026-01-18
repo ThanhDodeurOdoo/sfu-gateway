@@ -39,7 +39,7 @@ impl Balancer {
     /// Select an SFU instance based on optional region hint.
     ///
     /// Strategy:
-    /// 1. If region_hint is provided, filter to matching regions
+    /// 1. If `region_hint` is provided, filter to matching regions
     /// 2. Round-robin among matching (or all) instances
     ///
     /// Returns None if no SFUs are configured.

@@ -1,3 +1,8 @@
+#![warn(clippy::pedantic)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+
 mod auth;
 mod balancer;
 mod config;
@@ -28,12 +33,15 @@ async fn main() -> std::io::Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+    if tracing::subscriber::set_global_default(subscriber).is_err() {
+        eprintln!("Failed to set tracing subscriber");
+        std::process::exit(1);
+    }
     let args = Args::parse();
 
     // Load gateway config from environment
     let gateway = GatewayConfig::from_env().unwrap_or_else(|e| {
-        eprintln!("Error loading gateway config: {}", e);
+        eprintln!("Error loading gateway config: {e}");
         std::process::exit(1);
     });
 
@@ -41,13 +49,13 @@ async fn main() -> std::io::Result<()> {
     let nodes = if let Some(nodes_json) = gateway.nodes {
         info!("Loading SFU nodes from environment variable");
         NodeData::from_json(&nodes_json).unwrap_or_else(|e| {
-            eprintln!("Error parsing SFU nodes from environment: {}", e);
+            eprintln!("Error parsing SFU nodes from environment: {e}");
             std::process::exit(1);
         })
     } else {
         info!("Loading SFU nodes from file: {}", args.secrets);
         NodeData::load(&args.secrets).unwrap_or_else(|e| {
-            eprintln!("Error loading secrets file: {}", e);
+            eprintln!("Error loading secrets file: {e}");
             std::process::exit(1);
         })
     };
