@@ -1,5 +1,7 @@
 # SFU Gateway
 
+[![Tests](https://github.com/ThanhDodeurOdoo/sfu-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/ThanhDodeurOdoo/sfu-gateway/actions/workflows/test.yml)
+
 A Rust HTTP server that acts as a gateway/load-balancer for multiple [SFU](https://github.com/odoo/sfu) instances.
 
 ## Overview

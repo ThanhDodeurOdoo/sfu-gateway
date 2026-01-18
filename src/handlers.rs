@@ -177,8 +177,7 @@ pub async fn channel(
         }
         Err(e) => {
             warn!("Failed to contact SFU: {}", e);
-            HttpResponse::BadGateway()
-                .json(serde_json::json!({ "error": "failed to contact SFU" }))
+            HttpResponse::BadGateway().json(serde_json::json!({ "error": "failed to contact SFU" }))
         }
     }
 }

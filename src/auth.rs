@@ -49,7 +49,11 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
     use tracing::debug;
 
     debug!(token_len = token.len(), "Verifying JWT");
-    debug!(key_len = gateway_key.len(), key_preview = &gateway_key[..gateway_key.len().min(10)], "Using gateway key");
+    debug!(
+        key_len = gateway_key.len(),
+        key_preview = &gateway_key[..gateway_key.len().min(10)],
+        "Using gateway key"
+    );
 
     // Decode the base64 key (Odoo uses base64-decoded key for HMAC)
     let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
@@ -81,11 +85,10 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
     validation.required_spec_claims.clear();
     validation.validate_exp = false;
 
-    let token_data = decode::<Claims>(token, &key, &validation)
-        .map_err(|e| {
-            debug!(error = %e, "JWT decode failed");
-            AuthError::InvalidToken(e.to_string())
-        })?;
+    let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
+        debug!(error = %e, "JWT decode failed");
+        AuthError::InvalidToken(e.to_string())
+    })?;
 
     debug!(iss = %token_data.claims.iss, "JWT verified successfully");
     Ok(token_data.claims)
@@ -110,7 +113,9 @@ pub fn extract_token(auth_header: Option<&str>) -> Result<&str, AuthError> {
     header
         .split_once(' ')
         .map(|(_, token)| token)
-        .ok_or(AuthError::InvalidToken("expected '<scheme> <token>' format".to_string()))
+        .ok_or(AuthError::InvalidToken(
+            "expected '<scheme> <token>' format".to_string(),
+        ))
 }
 
 #[cfg(test)]

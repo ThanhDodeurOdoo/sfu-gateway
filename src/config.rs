@@ -79,10 +79,16 @@ impl NodeData {
 
 #[derive(Debug)]
 pub enum ConfigError {
-    Io { path: String, source: std::io::Error },
+    Io {
+        path: String,
+        source: std::io::Error,
+    },
     Toml(toml::de::Error),
     Json(serde_json::Error),
-    Env { var: String, message: String },
+    Env {
+        var: String,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -167,7 +173,7 @@ mod tests {
     fn test_gateway_config_from_env() {
         std::env::set_var("SFU_GATEWAY_KEY", "test-key");
         std::env::set_var("SFU_GATEWAY_NODES", "{\"sfu\":[]}");
-        
+
         let config = GatewayConfig::from_env().unwrap();
         assert_eq!(config.key, "test-key");
         assert_eq!(config.nodes, Some("{\"sfu\":[]}".to_string()));
