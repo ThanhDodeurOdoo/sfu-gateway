@@ -33,9 +33,9 @@ pub enum AuthError {
 impl std::fmt::Display for AuthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AuthError::MissingToken => write!(f, "missing authorization token"),
-            AuthError::InvalidToken(e) => write!(f, "invalid token: {e}"),
-            AuthError::SigningFailed(e) => write!(f, "failed to sign token: {e}"),
+            Self::MissingToken => write!(f, "missing authorization token"),
+            Self::InvalidToken(e) => write!(f, "invalid token: {e}"),
+            Self::SigningFailed(e) => write!(f, "failed to sign token: {e}"),
         }
     }
 }

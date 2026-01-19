@@ -48,14 +48,15 @@ impl Balancer {
         }
 
         // Filter by region if hint provided
-        let candidates: Vec<_> = match region_hint {
-            Some(region) => self
-                .sfus
-                .iter()
-                .filter(|sfu| sfu.region.as_deref() == Some(region))
-                .collect(),
-            None => self.sfus.iter().collect(),
-        };
+        let candidates: Vec<_> = region_hint.map_or_else(
+            || self.sfus.iter().collect(),
+            |region| {
+                self.sfus
+                    .iter()
+                    .filter(|sfu| sfu.region.as_deref() == Some(region))
+                    .collect()
+            },
+        );
 
         // Fall back to all SFUs if no region match
         let candidates = if candidates.is_empty() {

@@ -30,10 +30,10 @@ pub struct ChannelResponse {
 /// Build X-Forwarded-For header value by prepending client IP to existing chain.
 /// Pure function for testability.
 fn build_forwarded_for(client_ip: &str, existing: Option<&str>) -> String {
-    match existing {
-        Some(chain) => format!("{client_ip}, {chain}"),
-        None => client_ip.to_string(),
-    }
+    existing.map_or_else(
+        || client_ip.to_string(),
+        |chain| format!("{client_ip}, {chain}"),
+    )
 }
 
 /// Extract X-Forwarded-For components from `HttpRequest` and build the header.

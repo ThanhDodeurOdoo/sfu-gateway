@@ -168,15 +168,15 @@ pub enum ConfigError {
 impl std::fmt::Display for ConfigError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigError::Io { path, source } => {
+            Self::Io { path, source } => {
                 write!(f, "failed to read file '{path}': {source}")
             }
-            ConfigError::Toml(e) => write!(f, "failed to parse TOML config: {e}"),
-            ConfigError::Json(e) => write!(f, "failed to parse JSON config: {e}"),
-            ConfigError::Env { var, message } => {
+            Self::Toml(e) => write!(f, "failed to parse TOML config: {e}"),
+            Self::Json(e) => write!(f, "failed to parse JSON config: {e}"),
+            Self::Env { var, message } => {
                 write!(f, "environment variable {var}: {message}")
             }
-            ConfigError::Key {
+            Self::Key {
                 index,
                 address,
                 message,
@@ -285,6 +285,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_gateway_config_from_env() {
         std::env::set_var("SFU_GATEWAY_KEY", VALID_KEY_1);
         std::env::set_var("SFU_GATEWAY_NODES", "{\"sfu\":[]}");
@@ -295,6 +296,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_gateway_config_invalid_key() {
         std::env::set_var("SFU_GATEWAY_KEY", "invalid-key");
         let result = GatewayConfig::from_env();

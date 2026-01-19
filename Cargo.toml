@@ -19,3 +19,6 @@ clap = { version = "4", features = ["derive"] }
 urlencoding = "2"
 jsonwebtoken = "9"
 base64 = "0.22"
+
+[dev-dependencies]
+serial_test = "3"
