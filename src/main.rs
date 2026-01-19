@@ -1,7 +1,13 @@
-#![warn(clippy::pedantic)]
+#![deny(clippy::correctness)]
+#![deny(clippy::suspicious)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
+
+#![warn(clippy::pedantic)]
+#![warn(clippy::perf)]
+#![warn(clippy::complexity)]
+#![warn(clippy::style)]
 
 mod auth;
 mod balancer;

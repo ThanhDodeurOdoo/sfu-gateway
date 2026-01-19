@@ -3,6 +3,8 @@ name = "sfu-gateway"
 version = "0.1.0"
 edition = "2021"
 description = "Gateway/load-balancer for SFU instances"
+license-file = "LICENSE"
+repository = "https://github.com/ThanhDodeurOdoo/sfu-gateway"
 
 [dependencies]
 actix-web = "4"
