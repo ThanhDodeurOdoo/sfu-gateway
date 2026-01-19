@@ -1,49 +1,54 @@
 # Roadmap
 
-## Phase 1: Health Checks
+## Phase 1: SFU Self-Registration
 
 ### Goal
 
-Periodically poll SFUs to determine their availability and current load.
+Allow SFUs to register themselves with the gateway and periodically report their load. This push-based model is more scalable than polling and enables dynamic SFU discovery.
 
 ### Implementation
 
-1. **New `/v1/load` Endpoint on SFU**  
-   
-   > [!NOTE]
-   > The existing `/v1/stats` returns per-channel details (for debugging/monitoring).  
-   > We add a new `/v1/load` route for lightweight aggregate metrics — no API version change needed.
+1. **Optional Gateway Config on SFU**
 
-   Response format:
+   New environment variables on the SFU:
+   - `SFU_GATEWAY_URL` — Gateway base URL (e.g., `http://gateway:8071`)
+   - `SFU_GATEWAY_PING_INTERVAL` — Ping interval in ms (default: 10000)
+   - `SFU_REGION` — Region identifier for load balancing
+
+   When `SFU_GATEWAY_URL` is set, the SFU:
+   - Sends a heartbeat on startup and periodically via `POST /v1/sfu`
+   - Sends a sign-off on graceful shutdown
+
+2. **Unified Heartbeat Payload (SFU → Gateway)**
+
    ```json
    {
+     "status": "up",
+     "address": "http://sfu1.example.com:8070",
+     "region": "eu-west",
+     "key": "<base64-encoded-auth-key>",
      "channels": 12,
      "sessions": 45,
      "cpuUsage": 0.35,
      "memoryUsage": 0.48
    }
    ```
-   
-   This endpoint is unauthenticated (or uses a simple shared secret) for fast polling.
 
-2. **Gateway Health Monitor**  
-   The gateway spawns a background task that:
-   - Polls each SFU's `/v1/stats` at a configurable interval (e.g., 10s)
-   - Tracks response times and availability
-   - Marks SFUs as unhealthy after consecutive failures
+   The `status` field determines the SFU state:
+   - `"up"` — SFU is healthy and available (used for registration and periodic pings)
+   - `"down"` — SFU is signing off (graceful shutdown)
 
-3. **Configuration**
-   ```toml
-   # Added to secrets.toml or passed via SFU_GATEWAY_NODES
-   [health]
-   interval_seconds = 10
-   timeout_seconds = 5
-   unhealthy_threshold = 3  # failures before marking unhealthy
-   ```
+3. **Gateway Endpoint**
+
+   - `POST /v1/sfu` — Receives heartbeat, registers/updates SFU, or removes on sign-off
+
+4. **Health Tracking**
+
+   The gateway marks an SFU as unhealthy if no heartbeat is received within `unhealthy_threshold` seconds (default: 30s).
 
 ### Outcome
 
-The gateway maintains real-time knowledge of each SFU's status and load metrics.
+The gateway dynamically discovers SFUs and maintains real-time knowledge of each SFU's status and load metrics without requiring static configuration.
 
 ---
 
@@ -136,41 +141,3 @@ Handle partial failures and overload scenarios gracefully.
 
 4. **Health Dashboard** (optional)  
    Expose `/v1/health` endpoint showing status of all SFUs for monitoring.
-
----
-
-## Phase 4: Disconnect Support
-
-### Problem
-
-The current `/v1/disconnect` endpoint verifies requests by matching the caller's IP address against the channel's `remoteAddress`. With the gateway architecture, all requests originate from the gateway's IP.
-
-### Solution
-
-The gateway properly forwards the `X-Forwarded-For` header with the original Odoo IP.
-
-The SFU's `extractRequestInfo` function (in `utils.ts`) reads the **first** IP from `X-Forwarded-For` when in proxy mode. So the gateway must **prepend** the original client IP:
-
-```
-X-Forwarded-For: <original-odoo-ip>, <gateway-ip>, ...
-                  ↑ SFU reads this one
-```
-
-Implementation:
-1. Read incoming `X-Forwarded-For` header (if present)
-2. Prepend the original client IP
-3. Forward the modified header to the SFU
-
-Since the SFU already runs in proxy mode behind nginx, it already trusts and parses `X-Forwarded-For`.
-
-> [!NOTE]
-> No breaking changes required — the SFU's existing proxy mode handles this transparently.
-
----
-
-## Future Considerations
-
-- **Geographic Latency**: Factor in client-to-SFU latency measurements
-- **Capacity Reservation**: Reserve headroom on each SFU for sudden spikes
-- **Auto-scaling Integration**: Notify orchestrator when capacity is low
-- **Secure and Scalable cross server**: make SFUs contact the gateway to register themselves.
