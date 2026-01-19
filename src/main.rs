@@ -20,6 +20,7 @@
 mod auth;
 mod balancer;
 mod config;
+mod geo;
 mod handlers;
 
 use std::sync::Arc;

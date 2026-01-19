@@ -5,6 +5,7 @@ use tracing::{debug, info, warn};
 
 use crate::auth;
 use crate::balancer::Balancer;
+use crate::geo::country_to_region;
 
 pub struct AppState {
     pub balancer: Balancer,
@@ -18,6 +19,8 @@ pub struct AppState {
 pub struct ChannelQuery {
     /// Region hint for load balancing (not forwarded to SFU)
     pub region: Option<String>,
+    /// ISO 3166-1 alpha-2 country code, converted to region hint if region is not provided
+    pub country: Option<String>,
 }
 
 /// Response from SFU /v1/channel endpoint
@@ -53,7 +56,7 @@ fn get_forwarded_for(req: &HttpRequest) -> String {
     build_forwarded_for(&client_ip, existing)
 }
 
-const BLACKLISTED_QUERY_PARAMS: &[&str] = &["region"];
+const BLACKLISTED_QUERY_PARAMS: &[&str] = &["region", "country"];
 
 /// Filter query string, removing gateway-specific parameters (blacklist approach).
 /// Pure function for testability.
@@ -113,8 +116,12 @@ pub async fn channel(
 
     info!(iss = %claims.iss, "Verified JWT from Odoo");
 
-    // 2. Select an SFU based on region hint
-    let Some(sfu) = state.balancer.select(query.region.as_deref()) else {
+    // 2. Select an SFU based on region hint (prefer explicit region, fall back to country mapping)
+    let region_hint = query
+        .region
+        .as_deref()
+        .or_else(|| query.country.as_deref().and_then(country_to_region));
+    let Some(sfu) = state.balancer.select(region_hint) else {
         warn!("No SFU instances available");
         return HttpResponse::ServiceUnavailable()
             .json(serde_json::json!({ "error": "no SFU instances available" }));
@@ -236,5 +243,21 @@ mod tests {
     fn test_filter_query_params_preserves_new_params() {
         let result = filter_query_params("newParam=value&anotherNew=123&region=eu");
         assert_eq!(result, "newParam=value&anotherNew=123");
+    }
+
+    #[test]
+    fn test_filter_query_params_removes_country() {
+        let result =
+            filter_query_params("webRTC=true&country=FR&recordingAddress=http%3A%2F%2Flocalhost");
+        assert_eq!(
+            result,
+            "webRTC=true&recordingAddress=http%3A%2F%2Flocalhost"
+        );
+    }
+
+    #[test]
+    fn test_filter_query_params_removes_both_region_and_country() {
+        let result = filter_query_params("region=eu&country=FR&webRTC=true");
+        assert_eq!(result, "webRTC=true");
     }
 }
