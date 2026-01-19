@@ -13,14 +13,10 @@ pub struct AppState {
     pub gateway_key: String,
 }
 
-/// Query parameters for /v1/channel
+/// Query parameters for /v1/channel (gateway-specific only)
 #[derive(Debug, Deserialize)]
 pub struct ChannelQuery {
-    #[serde(rename = "webRTC")]
-    pub web_rtc: Option<String>,
-    #[serde(rename = "recordingAddress")]
-    pub recording_address: Option<String>,
-    /// Region hint for load balancing
+    /// Region hint for load balancing (not forwarded to SFU)
     pub region: Option<String>,
 }
 
@@ -55,6 +51,22 @@ fn get_forwarded_for(req: &HttpRequest) -> String {
         .and_then(|h| h.to_str().ok());
 
     build_forwarded_for(&client_ip, existing)
+}
+
+const BLACKLISTED_QUERY_PARAMS: &[&str] = &["region"];
+
+/// Filter query string, removing gateway-specific parameters (blacklist approach).
+/// Pure function for testability.
+fn filter_query_params(query_string: &str) -> String {
+    query_string
+        .split('&')
+        .filter(|part| {
+            !BLACKLISTED_QUERY_PARAMS
+                .iter()
+                .any(|blocked| part.starts_with(&format!("{blocked}=")))
+        })
+        .collect::<Vec<_>>()
+        .join("&")
 }
 
 pub async fn noop() -> HttpResponse {
@@ -123,20 +135,10 @@ pub async fn channel(
     // 4. Build the URL to the SFU and forward request
     let mut sfu_url = format!("{}/v1/channel", sfu.address);
 
-    // Forward query parameters (except region which is gateway-specific)
-    let mut query_parts = Vec::new();
-    if let Some(ref web_rtc) = query.web_rtc {
-        query_parts.push(format!("webRTC={web_rtc}"));
-    }
-    if let Some(ref recording_address) = query.recording_address {
-        query_parts.push(format!(
-            "recordingAddress={}",
-            urlencoding::encode(recording_address)
-        ));
-    }
-    if !query_parts.is_empty() {
+    let filtered_query = filter_query_params(req.query_string());
+    if !filtered_query.is_empty() {
         sfu_url.push('?');
-        sfu_url.push_str(&query_parts.join("&"));
+        sfu_url.push_str(&filtered_query);
     }
 
     // Make the request to the SFU with re-signed JWT and forwarded client IP
@@ -195,8 +197,44 @@ mod tests {
 
     #[test]
     fn test_build_forwarded_for_with_chain() {
-        // Gateway receives request that already went through another proxy
         let result = build_forwarded_for("192.168.1.100", Some("10.0.0.1, 172.16.0.1"));
         assert_eq!(result, "192.168.1.100, 10.0.0.1, 172.16.0.1");
+    }
+
+    #[test]
+    fn test_filter_query_params_passes_through_all() {
+        let result = filter_query_params("webRTC=true&recordingAddress=http%3A%2F%2Flocalhost");
+        assert_eq!(
+            result,
+            "webRTC=true&recordingAddress=http%3A%2F%2Flocalhost"
+        );
+    }
+
+    #[test]
+    fn test_filter_query_params_removes_region() {
+        let result =
+            filter_query_params("webRTC=true&region=eu&recordingAddress=http%3A%2F%2Flocalhost");
+        assert_eq!(
+            result,
+            "webRTC=true&recordingAddress=http%3A%2F%2Flocalhost"
+        );
+    }
+
+    #[test]
+    fn test_filter_query_params_region_only() {
+        let result = filter_query_params("region=us");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_filter_query_params_empty() {
+        let result = filter_query_params("");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_filter_query_params_preserves_new_params() {
+        let result = filter_query_params("newParam=value&anotherNew=123&region=eu");
+        assert_eq!(result, "newParam=value&anotherNew=123");
     }
 }
