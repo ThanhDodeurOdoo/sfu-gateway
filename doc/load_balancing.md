@@ -2,73 +2,67 @@
 
 ## Server Selection Strategy
 
-The gateway selects an SFU using a two-step process:
+The gateway selects an SFU using a multi-step process that considers geographic proximity.
 
-### 1. Region Filtering
+### 1. Region Resolution
 
-If the `?region=` query parameter is provided, the gateway filters to SFUs matching that region.
+The gateway accepts two query parameters for geo-based routing:
 
-```
-GET /v1/channel?region=eu-west
-```
+- `?region=eu-west` — Explicit region hint (takes priority)
+- `?country=FR` — ISO 3166-1 alpha-2 country code (mapped to region)
 
-Only SFUs configured with `region = "eu-west"` (in `secrets.toml` or `SFU_GATEWAY_NODES`) will be considered.
+If both are provided, `region` takes precedence.
 
-If no SFUs match the requested region, the gateway falls back to all available SFUs.
+### 2. Proximity-Based Fallback
 
-### 2. Round-Robin Selection
+When the preferred region has no available SFUs, the gateway tries nearby regions in order of geographic distance (Haversine formula).
 
-Among the filtered candidates, the gateway uses round-robin to distribute load evenly.
+See `src/geo.rs` for the full list of regions and country mappings.
 
 ```mermaid
 flowchart TD
-    A[Incoming Request] --> B{Region hint provided?}
-    B -->|Yes| C[Filter SFUs by region]
+    A[Incoming Request] --> B{Region or country hint?}
+    B -->|Yes| C[Resolve to region]
     B -->|No| D[Use all SFUs]
-    C --> E{Any matches?}
+    C --> E{SFU in this region?}
     E -->|Yes| F[Round-robin among matches]
-    E -->|No| D
+    E -->|No| G[Try next closest region]
+    G --> E
+    G -->|Exhausted| D
     D --> F
-    F --> G[Selected SFU]
+    F --> H[Selected SFU]
 ```
+
+### 3. Round-Robin Selection
+
+Among candidates in the selected region, the gateway uses round-robin to distribute load.
 
 ## Configuration
 
-Each SFU in the configuration (`secrets.toml` or `SFU_GATEWAY_NODES`) can have an optional region:
+Each SFU can have an optional region:
 
 ```toml
 [[sfu]]
 address = "http://sfu-eu1.example.com:8070"
 region = "eu-west"
 key = "..."
-
-[[sfu]]
-address = "http://sfu-eu2.example.com:8070"
-region = "eu-west"
-key = "..."
-
-[[sfu]]
-address = "http://sfu-us1.example.com:8070"
-region = "us-east"
-key = "..."
 ```
 
-## Using Region Hints
-
-Odoo can pass a region hint when requesting a channel:
+## Usage from Odoo
 
 ```python
+from odoo.http.geoip import GeoIP
+
+geoip = GeoIP(client_ip)
 response = requests.get(
     sfu_url + "/v1/channel",
-    params={"region": "eu-west"},  # Route to European SFU
+    params={"country": geoip.country_code},
     headers={"Authorization": f"Bearer {jwt}"},
 )
 ```
 
-## Future: Load-Based Selection
+## Future Improvements
 
-The current implementation uses simple round-robin. Future versions may:
-
-- Query SFU `/v1/stats` for current load
-- Weight selection based on active sessions/CPU/bandwidth
-- Skip unhealthy SFUs detected via health checks
+- Cache region lookups at boot time instead of per-request
+- Load-based weighting via `/v1/stats`
+- Skip unhealthy SFUs via health checks

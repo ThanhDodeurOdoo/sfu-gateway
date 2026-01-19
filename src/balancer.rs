@@ -1,4 +1,5 @@
 use crate::config::SfuConfig;
+use crate::geo::region_fallback_order;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Manages SFU instances and selects the optimal one for requests.
@@ -35,39 +36,68 @@ impl Balancer {
         }
     }
 
+    /// Get available regions from configured SFUs
+    fn available_regions(&self) -> Vec<&str> {
+        self.sfus
+            .iter()
+            .filter_map(|sfu| sfu.region.as_deref())
+            .collect()
+    }
+
+    /// Filter SFUs by region
+    fn sfus_in_region(&self, region: &str) -> Vec<&SfuInstance> {
+        self.sfus
+            .iter()
+            .filter(|sfu| sfu.region.as_deref() == Some(region))
+            .collect()
+    }
+
+    /// Select an SFU using round-robin from candidates
+    fn round_robin_select<'a>(&self, candidates: &[&'a SfuInstance]) -> Option<&'a SfuInstance> {
+        if candidates.is_empty() {
+            return None;
+        }
+        let index = self.counter.fetch_add(1, Ordering::Relaxed) % candidates.len();
+        Some(candidates[index])
+    }
+
     /// Select an SFU instance based on optional region hint.
     ///
     /// Strategy:
-    /// 1. If `region_hint` is provided, filter to matching regions
-    /// 2. Round-robin among matching (or all) instances
-    ///
-    /// Returns None if no SFUs are configured.
+    /// 1. If `region_hint` is provided, try to find SFUs in that region
+    /// 2. If no SFUs in that region, try nearby regions in order of proximity
+    /// 3. Fall back to round-robin among all SFUs
     pub fn select(&self, region_hint: Option<&str>) -> Option<&SfuInstance> {
         if self.sfus.is_empty() {
             return None;
         }
 
-        // Filter by region if hint provided
-        let candidates: Vec<_> = region_hint.map_or_else(
-            || self.sfus.iter().collect(),
-            |region| {
-                self.sfus
-                    .iter()
-                    .filter(|sfu| sfu.region.as_deref() == Some(region))
-                    .collect()
-            },
-        );
-
-        // Fall back to all SFUs if no region match
-        let candidates = if candidates.is_empty() {
-            self.sfus.iter().collect()
-        } else {
-            candidates
+        let Some(preferred_region) = region_hint else {
+            let all: Vec<_> = self.sfus.iter().collect();
+            return self.round_robin_select(&all);
         };
 
-        // Round-robin selection
-        let index = self.counter.fetch_add(1, Ordering::Relaxed) % candidates.len();
-        Some(candidates[index])
+        // available_regions should be build one at boot time
+        // and cached for the duration of the application
+        // later, when SFUs register themselves, available regions
+        // should be updated at runtime, but still not recomputed on access
+        let available = self.available_regions();
+        let fallback_order = region_fallback_order(preferred_region);
+
+        for candidate_region in &fallback_order {
+            if available.contains(candidate_region) {
+                // same as above, sfus_in_region should be a fast access data structure
+                // and built at boot time, or updated when the SFUs register
+                let candidates = self.sfus_in_region(candidate_region);
+                if !candidates.is_empty() {
+                    return self.round_robin_select(&candidates);
+                }
+            }
+        }
+
+        // Fallback to all SFUs if no proximity match (unknown region or no match)
+        let all: Vec<_> = self.sfus.iter().collect();
+        self.round_robin_select(&all)
     }
 }
 
@@ -132,6 +162,43 @@ mod tests {
     }
 
     #[test]
+    fn test_fallback_to_nearby_region() {
+        let balancer = Balancer::new(vec![
+            make_sfu(
+                "http://eu-west1:3000",
+                Some("eu-west"),
+                b"key1-padded-to-32-bytes-1234567",
+            ),
+            make_sfu(
+                "http://us-east1:3000",
+                Some("us-east"),
+                b"key2-padded-to-32-bytes-1234567",
+            ),
+        ]);
+
+        // Request eu-north, should fall back to eu-west (closest available)
+        let selected = balancer.select(Some("eu-north")).unwrap();
+        assert!(
+            selected.address.contains("eu-west"),
+            "Expected eu-west, got {}",
+            selected.address
+        );
+    }
+
+    #[test]
+    fn test_fallback_to_distant_region() {
+        let balancer = Balancer::new(vec![make_sfu(
+            "http://us-east1:3000",
+            Some("us-east"),
+            b"key1-padded-to-32-bytes-1234567",
+        )]);
+
+        // Request ap-northeast, should eventually fall back to us-east
+        let selected = balancer.select(Some("ap-northeast")).unwrap();
+        assert_eq!(selected.address, "http://us-east1:3000");
+    }
+
+    #[test]
     fn test_fallback_when_no_region_match() {
         let balancer = Balancer::new(vec![
             make_sfu(
@@ -146,8 +213,8 @@ mod tests {
             ),
         ]);
 
-        // Request non-existent region, should fall back to any
-        let selected = balancer.select(Some("asia-pacific")).unwrap();
+        // Request unknown region, should fall back to any
+        let selected = balancer.select(Some("unknown-region")).unwrap();
         assert!(!selected.address.is_empty());
     }
 
@@ -163,5 +230,29 @@ mod tests {
         let balancer = Balancer::new(vec![make_sfu("http://sfu1:3000", None, key)]);
         let selected = balancer.select(None).unwrap();
         assert_eq!(selected.key, key);
+    }
+
+    #[test]
+    fn test_proximity_order_from_ap_south() {
+        let balancer = Balancer::new(vec![
+            make_sfu(
+                "http://eu-west1:3000",
+                Some("eu-west"),
+                b"key1-padded-to-32-bytes-1234567",
+            ),
+            make_sfu(
+                "http://ap-southeast1:3000",
+                Some("ap-southeast"),
+                b"key2-padded-to-32-bytes-1234567",
+            ),
+        ]);
+
+        // ap-south should prefer ap-southeast over eu-west
+        let selected = balancer.select(Some("ap-south")).unwrap();
+        assert!(
+            selected.address.contains("ap-southeast"),
+            "Expected ap-southeast to be preferred, got {}",
+            selected.address
+        );
     }
 }

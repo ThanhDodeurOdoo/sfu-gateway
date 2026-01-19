@@ -1,6 +1,6 @@
 # Roadmap
 
-## Phase 1: SFU Self-Registration
+## SFU Self-Registration
 
 ### Goal
 
@@ -52,7 +52,7 @@ The gateway dynamically discovers SFUs and maintains real-time knowledge of each
 
 ---
 
-## Phase 2: Load-Based Selection
+## Load-Based Selection
 
 ### Goal
 
@@ -104,7 +104,7 @@ memory = 0.2
 
 ---
 
-## Phase 3: Graceful Degradation
+## Graceful Degradation
 
 ### Goal
 
@@ -141,3 +141,11 @@ Handle partial failures and overload scenarios gracefully.
 
 4. **Health Dashboard** (optional)  
    Expose `/v1/health` endpoint showing status of all SFUs for monitoring.
+
+## Smarter balancer
+
+### Goal
+
+Improve load balancing by considering by adding weighted geolocation proximity, for example
+if a server in eu-west is very loaded, but a low-load server in eu-east is available, then
+some weight should encode that eu-east is "close enough" to eu-west to be a viable candidate.
