@@ -46,9 +46,9 @@ async fn main() -> std::io::Result<()> {
     });
 
     // Load secrets: prioritize environment variable JSON over local file
-    let nodes = if let Some(nodes_json) = gateway.nodes {
+    let nodes = if let Some(ref nodes_json) = gateway.nodes {
         info!("Loading SFU nodes from environment variable");
-        NodeData::from_json(&nodes_json).unwrap_or_else(|e| {
+        NodeData::from_json(nodes_json).unwrap_or_else(|e| {
             eprintln!("Error parsing SFU nodes from environment: {e}");
             std::process::exit(1);
         })

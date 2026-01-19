@@ -12,9 +12,8 @@ pub struct Balancer {
 pub struct SfuInstance {
     pub address: String,
     pub region: Option<String>,
-    /// JWT secret key for signing tokens to this SFU
-    pub key: String,
-    // Future: health status, load metrics, etc.
+    /// JWT secret key for signing tokens to this SFU (decoded bytes)
+    pub key: Vec<u8>,
 }
 
 impl From<SfuConfig> for SfuInstance {
@@ -75,20 +74,20 @@ impl Balancer {
 mod tests {
     use super::*;
 
-    fn make_sfu(address: &str, region: Option<&str>, key: &str) -> SfuConfig {
+    fn make_sfu(address: &str, region: Option<&str>, key: &[u8]) -> SfuConfig {
         SfuConfig {
             address: address.to_string(),
             region: region.map(String::from),
-            key: key.to_string(),
+            key: key.to_vec(),
         }
     }
 
     #[test]
     fn test_round_robin_selection() {
         let balancer = Balancer::new(vec![
-            make_sfu("http://sfu1:3000", None, "key1"),
-            make_sfu("http://sfu2:3000", None, "key2"),
-            make_sfu("http://sfu3:3000", None, "key3"),
+            make_sfu("http://sfu1:3000", None, b"key1-padded-to-32-bytes-1234567"),
+            make_sfu("http://sfu2:3000", None, b"key2-padded-to-32-bytes-1234567"),
+            make_sfu("http://sfu3:3000", None, b"key3-padded-to-32-bytes-1234567"),
         ]);
 
         let first = balancer.select(None).unwrap().address.clone();
@@ -106,9 +105,21 @@ mod tests {
     #[test]
     fn test_region_filtering() {
         let balancer = Balancer::new(vec![
-            make_sfu("http://eu1:3000", Some("eu-west"), "key1"),
-            make_sfu("http://eu2:3000", Some("eu-west"), "key2"),
-            make_sfu("http://us1:3000", Some("us-east"), "key3"),
+            make_sfu(
+                "http://eu1:3000",
+                Some("eu-west"),
+                b"key1-padded-to-32-bytes-1234567",
+            ),
+            make_sfu(
+                "http://eu2:3000",
+                Some("eu-west"),
+                b"key2-padded-to-32-bytes-1234567",
+            ),
+            make_sfu(
+                "http://us1:3000",
+                Some("us-east"),
+                b"key3-padded-to-32-bytes-1234567",
+            ),
         ]);
 
         // Select from eu-west only
@@ -122,8 +133,16 @@ mod tests {
     #[test]
     fn test_fallback_when_no_region_match() {
         let balancer = Balancer::new(vec![
-            make_sfu("http://eu1:3000", Some("eu-west"), "key1"),
-            make_sfu("http://us1:3000", Some("us-east"), "key2"),
+            make_sfu(
+                "http://eu1:3000",
+                Some("eu-west"),
+                b"key1-padded-to-32-bytes-1234567",
+            ),
+            make_sfu(
+                "http://us1:3000",
+                Some("us-east"),
+                b"key2-padded-to-32-bytes-1234567",
+            ),
         ]);
 
         // Request non-existent region, should fall back to any
@@ -139,8 +158,9 @@ mod tests {
 
     #[test]
     fn test_sfu_has_key() {
-        let balancer = Balancer::new(vec![make_sfu("http://sfu1:3000", None, "secret-key")]);
+        let key = b"secret-key-padded-to-32-bytes12";
+        let balancer = Balancer::new(vec![make_sfu("http://sfu1:3000", None, key)]);
         let selected = balancer.select(None).unwrap();
-        assert_eq!(selected.key, "secret-key");
+        assert_eq!(selected.key, key);
     }
 }

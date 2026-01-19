@@ -9,8 +9,8 @@ use crate::balancer::Balancer;
 pub struct AppState {
     pub balancer: Balancer,
     pub http_client: reqwest::Client,
-    /// Gateway's JWT secret key for verifying tokens from Odoo
-    pub gateway_key: String,
+    /// Gateway's JWT secret key for verifying tokens from Odoo (decoded bytes)
+    pub gateway_key: Vec<u8>,
 }
 
 /// Query parameters for /v1/channel (gateway-specific only)

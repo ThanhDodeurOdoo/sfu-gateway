@@ -4,7 +4,6 @@
 //! - Verifying JWTs from Odoo (signed with gateway's key)
 //! - Re-signing JWTs for SFUs (signed with each SFU's key)
 
-use base64::Engine;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
@@ -43,22 +42,11 @@ impl std::fmt::Display for AuthError {
 
 impl std::error::Error for AuthError {}
 
-/// Verify a JWT using the gateway's secret key.
-/// The key should be base64-encoded (matching Odoo's format).
-pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
+/// Verify a JWT using the gateway's secret key (raw bytes).
+pub fn verify(token: &str, key_bytes: &[u8]) -> Result<Claims, AuthError> {
     use tracing::debug;
 
-    // Decode the base64 key (Odoo uses base64-decoded key for HMAC)
-    let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(gateway_key.trim_end_matches('='))
-        .or_else(|e| {
-            debug!(url_safe_error = %e, "URL-safe base64 decode failed, trying standard");
-            // Try standard base64 if URL-safe fails
-            base64::engine::general_purpose::STANDARD.decode(gateway_key)
-        })
-        .map_err(|e| AuthError::InvalidToken(format!("invalid key encoding: {e}")))?;
-
-    let key = DecodingKey::from_secret(&key_bytes);
+    let key = DecodingKey::from_secret(key_bytes);
 
     let token_data = decode::<Claims>(token, &key, &Validation::default()).map_err(|e| {
         debug!(error = %e, "JWT decode failed");
@@ -69,15 +57,9 @@ pub fn verify(token: &str, gateway_key: &str) -> Result<Claims, AuthError> {
     Ok(token_data.claims)
 }
 
-/// Sign claims with the SFU's secret key.
-/// The key should be base64-encoded (matching SFU's format).
-pub fn sign(claims: &Claims, sfu_key: &str) -> Result<String, AuthError> {
-    let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(sfu_key.trim_end_matches('='))
-        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(sfu_key))
-        .map_err(|e| AuthError::SigningFailed(format!("invalid key encoding: {e}")))?;
-
-    let key = EncodingKey::from_secret(&key_bytes);
+/// Sign claims with the SFU's secret key (raw bytes).
+pub fn sign(claims: &Claims, key_bytes: &[u8]) -> Result<String, AuthError> {
+    let key = EncodingKey::from_secret(key_bytes);
     encode(&Header::default(), claims, &key).map_err(|e| AuthError::SigningFailed(e.to_string()))
 }
 
@@ -96,15 +78,13 @@ pub fn extract_token(auth_header: Option<&str>) -> Result<&str, AuthError> {
 mod tests {
     use super::*;
 
-    // Base64-encoded test keys (32 random bytes each)
-    const TEST_KEY: &str = "dGVzdC1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0NTY=";
-    const WRONG_KEY: &str = "d3JvbmctdGVzdC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc=";
+    const TEST_KEY: &[u8] = b"test-secret-key-1234567890123456";
+    const WRONG_KEY: &[u8] = b"wrong-test-key-12345678901234567";
 
     fn make_test_claims() -> Claims {
         Claims {
             iss: "test-channel-123".to_string(),
             key: Some("encryption-key".to_string()),
-            // Expire in 1 hour
             exp: Some(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -145,24 +125,19 @@ mod tests {
 
     #[test]
     fn test_resign_with_different_key() {
-        let gateway_key = "Z2F0ZXdheS1zZWNyZXQta2V5LTEyMzQ1Njc4OTAxMjM0";
-        let sfu_key = "c2Z1LXNlY3JldC1rZXktMTIzNDU2Nzg5MDEyMzQ1Njc4";
+        let gateway_key: &[u8] = b"gateway-secret-key-123456789012";
+        let sfu_key: &[u8] = b"sfu-secret-key-12345678901234567";
 
-        // Odoo signs with gateway key
         let claims = make_test_claims();
         let original_token = sign(&claims, gateway_key).unwrap();
 
-        // Gateway verifies with its key
         let verified_claims = verify(&original_token, gateway_key).unwrap();
 
-        // Gateway re-signs with SFU key
         let new_token = sign(&verified_claims, sfu_key).unwrap();
 
-        // SFU can verify with its key
         let sfu_verified = verify(&new_token, sfu_key).unwrap();
         assert_eq!(sfu_verified.iss, "test-channel-123");
 
-        // But not with gateway key
         assert!(verify(&new_token, gateway_key).is_err());
     }
 }

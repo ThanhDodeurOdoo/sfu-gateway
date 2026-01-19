@@ -57,12 +57,15 @@ export PROXY=true
 
 1. Set environment variables:
    ```bash
-   export SFU_GATEWAY_KEY="gateway-secret-key"  # Same as ODOO_SFU_KEY
+   export SFU_GATEWAY_KEY="gateway-secret-key"  # Same as ODOO_SFU_KEY (base64-encoded)
    export SFU_GATEWAY_PORT="8071"               # Optional, default 8071
    export SFU_GATEWAY_BIND="0.0.0.0"            # Optional, default 0.0.0.0
    # Optional: JSON string of SFUs (overrides secrets.toml)
    export SFU_GATEWAY_NODES='{"sfu": [{"address": "http://sfu1:3000", "key": "key1"}]}'
    ```
+
+> [!NOTE]
+> Keys must be base64-encoded. For optimal security with HMAC-SHA256, keys should be at least 32 bytes (256 bits). A warning is logged if keys are shorter.
 
 2. Create `secrets.toml` with your SFU entries (if not using `SFU_GATEWAY_NODES`):
    ```toml
