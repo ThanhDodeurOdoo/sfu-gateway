@@ -4,7 +4,7 @@
 //! - Verifying JWTs from Odoo (signed with gateway's key)
 //! - Re-signing JWTs for SFUs (signed with each SFU's key)
 
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 
 /// JWT claims structure matching the SFU's expected format

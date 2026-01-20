@@ -294,8 +294,11 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_gateway_config_from_env() {
-        std::env::set_var("SFU_GATEWAY_KEY", VALID_KEY_1);
-        std::env::set_var("SFU_GATEWAY_NODES", "{\"sfu\":[]}");
+        // SAFETY: test runs serially
+        unsafe {
+            std::env::set_var("SFU_GATEWAY_KEY", VALID_KEY_1);
+            std::env::set_var("SFU_GATEWAY_NODES", "{\"sfu\":[]}");
+        }
 
         let config = GatewayConfig::from_env().unwrap();
         assert_eq!(config.key, VALID_KEY_1_BYTES);
@@ -305,7 +308,10 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_gateway_config_invalid_key() {
-        std::env::set_var("SFU_GATEWAY_KEY", "invalid-key");
+        // SAFETY: test runs serially
+        unsafe {
+            std::env::set_var("SFU_GATEWAY_KEY", "invalid-key");
+        }
         let result = GatewayConfig::from_env();
         assert!(matches!(result, Err(ConfigError::Env { .. })));
     }

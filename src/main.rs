@@ -6,9 +6,9 @@ mod handlers;
 
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use clap::Parser;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::balancer::Balancer;
