@@ -12,6 +12,8 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     /// Gateway's JWT secret key for verifying tokens from Odoo (decoded bytes)
     pub gateway_key: Vec<u8>,
+    /// When true, trust X-Forwarded-For header from upstream proxy
+    pub trust_proxy: bool,
 }
 
 /// Query parameters for /v1/channel (gateway-specific only)
@@ -30,30 +32,38 @@ pub struct ChannelResponse {
     pub url: String,
 }
 
-/// Build X-Forwarded-For header value by prepending client IP to existing chain.
+/// Build X-Forwarded-For header value by appending new IP to existing chain.
+/// Per RFC 7239, each proxy appends the IP of the immediate client it received from.
 /// Pure function for testability.
-fn build_forwarded_for(client_ip: &str, existing: Option<&str>) -> String {
-    existing.map_or_else(
-        || client_ip.to_string(),
-        |chain| format!("{client_ip}, {chain}"),
-    )
+fn build_forwarded_for(existing: Option<&str>, new_ip: &str) -> String {
+    existing.map_or_else(|| new_ip.to_string(), |chain| format!("{chain}, {new_ip}"))
 }
 
-/// Extract X-Forwarded-For components from `HttpRequest` and build the header.
-/// The SFU reads the first IP from this header (when in proxy mode).
-fn get_forwarded_for(req: &HttpRequest) -> String {
-    let client_ip = req
+/// Build X-Forwarded-For header for the downstream SFU.
+///
+/// When `trust_proxy` is true, the gateway is behind a trusted reverse proxy.
+/// We trust the existing X-Forwarded-For header and append our direct peer IP
+/// (the proxy's IP) to maintain the complete chain.
+///
+/// When `trust_proxy` is false, the gateway is directly exposed to clients.
+/// Any existing X-Forwarded-For header is untrusted (could be spoofed), so we
+/// ignore it and use only our direct peer IP as the client.
+fn get_forwarded_for(req: &HttpRequest, trust_proxy: bool) -> String {
+    let peer_ip = req
         .connection_info()
         .realip_remote_addr()
         .unwrap_or("unknown")
         .to_string();
 
-    let existing = req
-        .headers()
-        .get("X-Forwarded-For")
-        .and_then(|h| h.to_str().ok());
-
-    build_forwarded_for(&client_ip, existing)
+    if trust_proxy {
+        let existing = req
+            .headers()
+            .get("X-Forwarded-For")
+            .and_then(|h| h.to_str().ok());
+        build_forwarded_for(existing, &peer_ip)
+    } else {
+        peer_ip
+    }
 }
 
 const BLACKLISTED_QUERY_PARAMS: &[&str] = &["region", "country"];
@@ -153,7 +163,10 @@ pub async fn channel(
         .http_client
         .get(&sfu_url)
         .header("Authorization", format!("Bearer {sfu_token}"))
-        .header("X-Forwarded-For", get_forwarded_for(&req));
+        .header(
+            "X-Forwarded-For",
+            get_forwarded_for(&req, state.trust_proxy),
+        );
 
     match request.send().await {
         Ok(response) => {
@@ -192,20 +205,20 @@ mod tests {
 
     #[test]
     fn test_build_forwarded_for_no_existing() {
-        let result = build_forwarded_for("192.168.1.100", None);
+        let result = build_forwarded_for(None, "192.168.1.100");
         assert_eq!(result, "192.168.1.100");
     }
 
     #[test]
     fn test_build_forwarded_for_with_existing() {
-        let result = build_forwarded_for("192.168.1.100", Some("10.0.0.1"));
-        assert_eq!(result, "192.168.1.100, 10.0.0.1");
+        let result = build_forwarded_for(Some("10.0.0.1"), "192.168.1.100");
+        assert_eq!(result, "10.0.0.1, 192.168.1.100");
     }
 
     #[test]
     fn test_build_forwarded_for_with_chain() {
-        let result = build_forwarded_for("192.168.1.100", Some("10.0.0.1, 172.16.0.1"));
-        assert_eq!(result, "192.168.1.100, 10.0.0.1, 172.16.0.1");
+        let result = build_forwarded_for(Some("10.0.0.1, 172.16.0.1"), "192.168.1.100");
+        assert_eq!(result, "10.0.0.1, 172.16.0.1, 192.168.1.100");
     }
 
     #[test]

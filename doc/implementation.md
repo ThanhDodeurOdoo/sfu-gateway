@@ -60,9 +60,13 @@ export PROXY=true
    export SFU_GATEWAY_KEY="gateway-secret-key"  # Same as ODOO_SFU_KEY (base64-encoded)
    export SFU_GATEWAY_PORT="8071"               # Optional, default 8071
    export SFU_GATEWAY_BIND="0.0.0.0"            # Optional, default 0.0.0.0
+   export SFU_GATEWAY_TRUST_PROXY="true"        # Optional, set if behind reverse proxy
    # Optional: JSON string of SFUs (overrides secrets.toml)
    export SFU_GATEWAY_NODES='{"sfu": [{"address": "http://sfu1:3000", "key": "key1"}]}'
    ```
+
+> [!IMPORTANT]
+> Set `SFU_GATEWAY_TRUST_PROXY=true` when the gateway is behind a reverse proxy (e.g., nginx or a load balancer). When enabled, the gateway trusts `X-Forwarded-For` headers from the upstream proxy to determine the real client IP. When disabled (default), the gateway treats its direct connection as the client.
 
 > [!NOTE]
 > Keys must be base64-encoded. For optimal security with HMAC-SHA256, keys should be at least 32 bytes (256 bits). A warning is logged if keys are shorter.

@@ -12,6 +12,8 @@ pub struct GatewayConfig {
     pub port: u16,
     pub key: Vec<u8>,
     pub nodes: Option<String>,
+    /// When true, trust X-Forwarded-For header from upstream proxy to determine client IP
+    pub trust_proxy: bool,
 }
 
 impl GatewayConfig {
@@ -44,11 +46,16 @@ impl GatewayConfig {
 
         let nodes = std::env::var("SFU_GATEWAY_NODES").ok();
 
+        let trust_proxy = std::env::var("SFU_GATEWAY_TRUST_PROXY")
+            .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+            .unwrap_or(false);
+
         Ok(Self {
             bind,
             port,
             key,
             nodes,
+            trust_proxy,
         })
     }
 }

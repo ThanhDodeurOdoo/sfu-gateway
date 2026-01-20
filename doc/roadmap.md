@@ -1,10 +1,17 @@
 # Roadmap
 
+## Proper handling of the SFU `/disconnect` route
+
+The SFU `/disconnect` is not reached through the gateway (and shouldn't be). The issue is that the route payload is signed with a `key` that is the key of the SFU (which is now the key of the gateway). The odoo server no longer knows that key (and shouldn't).
+
+The key check should be removed from the `/disconnect` route. Only the IP check would remain (this should already be correctly set as the gateway forwards with x-forwarded-for). Then additional security can be implemented at the infrastructure level (eg: mTLS).
+
+That would allow the Odoo code to remain unchanged: it still signs the payload with a key, it's just wrong.
+But we can ignore that and still peek into the JWT (see https://github.com/odoo/sfu/pull/21 ) for backwards compatibility.
+
 ## SFU Self-Registration
 
-### Goal
-
-Allow SFUs to register themselves with the gateway and periodically report their load. This push-based model is more scalable than polling and enables dynamic SFU discovery.
+Allow SFUs to register themselves with the gateway and periodically report their load. This push-based model is more scalable than polling and enables dynamic SFU discovery. The Gateway wouldn't need to be fed with a static list of SFUs.
 
 ### Implementation
 
@@ -40,21 +47,10 @@ Allow SFUs to register themselves with the gateway and periodically report their
 
 3. **Gateway Endpoint**
 
-   - `POST /v1/sfu` — Receives heartbeat, registers/updates SFU, or removes on sign-off
+   - `POST /v1/sfu` — Receives heartbeat, registers/updates SFU, or removes on sign-off, protected route
 
-4. **Health Tracking**
-
-   The gateway marks an SFU as unhealthy if no heartbeat is received within `unhealthy_threshold` seconds (default: 30s).
-
-### Outcome
-
-The gateway dynamically discovers SFUs and maintains real-time knowledge of each SFU's status and load metrics without requiring static configuration.
-
----
 
 ## Load-Based Selection
-
-### Goal
 
 Replace round-robin with intelligent selection that routes to the least-loaded SFU.
 
@@ -90,6 +86,8 @@ Default weights:
 - `w2 = 0.3` (CPU usage)  
 - `w3 = 0.2` (memory usage)
 
+(TODO: also give weight inverse to geogrphic distance)
+
 ### Configuration
 
 ```toml
@@ -105,8 +103,6 @@ memory = 0.2
 ---
 
 ## Graceful Degradation
-
-### Goal
 
 Handle partial failures and overload scenarios gracefully.
 
@@ -142,10 +138,3 @@ Handle partial failures and overload scenarios gracefully.
 4. **Health Dashboard** (optional)  
    Expose `/v1/health` endpoint showing status of all SFUs for monitoring.
 
-## Smarter balancer
-
-### Goal
-
-Improve load balancing by considering by adding weighted geolocation proximity, for example
-if a server in eu-west is very loaded, but a low-load server in eu-east is available, then
-some weight should encode that eu-east is "close enough" to eu-west to be a viable candidate.

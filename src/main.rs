@@ -94,6 +94,7 @@ async fn main() -> std::io::Result<()> {
         balancer: Balancer::new(nodes.sfu),
         http_client: reqwest::Client::new(),
         gateway_key: gateway.key,
+        trust_proxy: gateway.trust_proxy,
     });
 
     let bind_addr = format!("{}:{}", gateway.bind, gateway.port);
