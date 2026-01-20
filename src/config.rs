@@ -295,6 +295,7 @@ mod tests {
     #[serial_test::serial]
     fn test_gateway_config_from_env() {
         // SAFETY: test runs serially
+        #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("SFU_GATEWAY_KEY", VALID_KEY_1);
             std::env::set_var("SFU_GATEWAY_NODES", "{\"sfu\":[]}");
@@ -309,6 +310,7 @@ mod tests {
     #[serial_test::serial]
     fn test_gateway_config_invalid_key() {
         // SAFETY: test runs serially
+        #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("SFU_GATEWAY_KEY", "invalid-key");
         }

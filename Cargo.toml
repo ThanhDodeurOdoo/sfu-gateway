@@ -23,6 +23,9 @@ base64 = "0.22"
 [dev-dependencies]
 serial_test = "3"
 
+[lints.rust]
+unsafe_code = "deny"
+
 [lints.clippy] # https://rust-lang.github.io/rust-clippy/
 correctness = { level="deny", priority = -1 }
 suspicious = { level="deny", priority = -1 }
