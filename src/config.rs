@@ -1,7 +1,8 @@
-use base64::Engine;
-use serde::Deserialize;
 use std::fs;
 use std::path::Path;
+
+use base64::Engine;
+use serde::Deserialize;
 
 const EXPECTED_KEY_LENGTH: usize = 32;
 

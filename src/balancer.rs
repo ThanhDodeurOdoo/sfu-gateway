@@ -1,6 +1,7 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use crate::config::SfuConfig;
 use crate::geo::region_fallback_order;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Manages SFU instances and selects the optimal one for requests.
 pub struct Balancer {

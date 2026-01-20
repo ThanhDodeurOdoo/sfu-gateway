@@ -5,3 +5,6 @@ use_try_shorthand = true
 reorder_imports = true
 reorder_modules = true
 newline_style = "Unix"
+
+# nightly (unused, but ideal)
+group_imports = "StdExternalCrate" # https://github.com/rust-lang/rustfmt/issues/5083
