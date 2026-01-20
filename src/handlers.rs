@@ -83,6 +83,7 @@ fn filter_query_params(query_string: &str) -> String {
         .join("&")
 }
 
+#[allow(clippy::unused_async)] // async required by actix
 pub async fn noop() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({ "status": "ok" }))
 }

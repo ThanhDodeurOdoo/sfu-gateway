@@ -1,4 +1,5 @@
 /// Maps ISO 3166-1 alpha-2 country codes to SFU regions.
+#[must_use]
 pub fn country_to_region(country_code: &str) -> Option<&'static str> {
     match country_code.to_uppercase().as_str() {
         // Western Europe
@@ -154,6 +155,7 @@ fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 
 /// Returns regions ordered by proximity from the given region.
 /// Unknown regions return an empty vector.
+#[must_use]
 pub fn region_fallback_order(region: &str) -> Vec<&'static str> {
     let Some((origin_lat, origin_lon)) = region_coords(region) else {
         return Vec::new();

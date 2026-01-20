@@ -25,6 +25,9 @@ impl GatewayConfig {
     /// - `SFU_GATEWAY_PORT` - Port to listen on (default: 8071)
     /// - `SFU_GATEWAY_KEY` - Base64-encoded JWT secret key (required)
     /// - `SFU_GATEWAY_NODES` - JSON string of SFU nodes (optional)
+    ///
+    /// # Errors
+    /// Returns `ConfigError::Env` if required variables are missing or invalid.
     pub fn from_env() -> Result<Self, ConfigError> {
         let bind = std::env::var("SFU_GATEWAY_BIND").unwrap_or_else(|_| "0.0.0.0".to_string());
 
@@ -111,6 +114,10 @@ fn decode_and_validate_key(key: &str) -> Result<Vec<u8>, String> {
 }
 
 impl NodeData {
+    /// Load node data from a TOML file.
+    ///
+    /// # Errors
+    /// Returns `ConfigError::Io` on file read failure, `ConfigError::Toml` on parse failure.
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
         let content = fs::read_to_string(path.as_ref()).map_err(|e| ConfigError::Io {
             path: path.as_ref().display().to_string(),
@@ -120,6 +127,10 @@ impl NodeData {
         Self::from_raw(raw)
     }
 
+    /// Parse node data from a JSON string.
+    ///
+    /// # Errors
+    /// Returns `ConfigError::Json` on parse failure, `ConfigError::Key` on invalid keys.
     pub fn from_json(json: &str) -> Result<Self, ConfigError> {
         let raw: RawNodeData = serde_json::from_str(json).map_err(ConfigError::Json)?;
         Self::from_raw(raw)

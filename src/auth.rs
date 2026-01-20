@@ -43,6 +43,9 @@ impl std::fmt::Display for AuthError {
 impl std::error::Error for AuthError {}
 
 /// Verify a JWT using the gateway's secret key (raw bytes).
+///
+/// # Errors
+/// Returns `AuthError::InvalidToken` if the token is malformed or signature verification fails.
 pub fn verify(token: &str, key_bytes: &[u8]) -> Result<Claims, AuthError> {
     use tracing::debug;
 
@@ -58,12 +61,18 @@ pub fn verify(token: &str, key_bytes: &[u8]) -> Result<Claims, AuthError> {
 }
 
 /// Sign claims with the SFU's secret key (raw bytes).
+///
+/// # Errors
+/// Returns `AuthError::SigningFailed` if JWT encoding fails.
 pub fn sign(claims: &Claims, key_bytes: &[u8]) -> Result<String, AuthError> {
     let key = EncodingKey::from_secret(key_bytes);
     encode(&Header::default(), claims, &key).map_err(|e| AuthError::SigningFailed(e.to_string()))
 }
 
 /// Extract token from Authorization header (format: "<scheme> <token>")
+///
+/// # Errors
+/// Returns `AuthError::MissingToken` if header is None, or `AuthError::InvalidToken` if format is wrong.
 pub fn extract_token(auth_header: Option<&str>) -> Result<&str, AuthError> {
     let header = auth_header.ok_or(AuthError::MissingToken)?;
     header

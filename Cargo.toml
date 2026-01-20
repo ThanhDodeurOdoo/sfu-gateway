@@ -22,6 +22,7 @@ base64 = "0.22"
 
 [dev-dependencies]
 serial_test = "3"
+wiremock = "0.6"
 
 [lints.rust]
 unsafe_code = "deny"

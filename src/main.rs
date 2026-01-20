@@ -1,9 +1,3 @@
-mod auth;
-mod balancer;
-mod config;
-mod geo;
-mod handlers;
-
 use std::sync::Arc;
 
 use actix_web::{App, HttpServer, web};
@@ -11,9 +5,10 @@ use clap::Parser;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::balancer::Balancer;
-use crate::config::{GatewayConfig, NodeData};
-use crate::handlers::AppState;
+use sfu_gateway::balancer::Balancer;
+use sfu_gateway::config::{GatewayConfig, NodeData};
+use sfu_gateway::handlers;
+use sfu_gateway::handlers::AppState;
 
 #[derive(Parser, Debug)]
 #[command(name = "sfu-gateway")]
