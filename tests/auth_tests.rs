@@ -5,9 +5,11 @@ use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{GATEWAY_KEY, SFU_KEY, create_app_state, make_test_claims, single_sfu};
-use sfu_gateway::auth;
-use sfu_gateway::handlers::{channel, noop};
+use common::{GATEWAY_KEY, create_app_state, make_test_claims, sign_claims};
+use sfu_gateway::config::SfuConfig;
+use sfu_gateway::http::{channel, noop};
+
+const SFU_KEY: &[u8] = b"sfu-key-padded-to-32-bytes-here!";
 
 #[actix_web::test]
 async fn test_noop_endpoint() {
@@ -25,7 +27,11 @@ async fn test_noop_endpoint() {
 async fn test_channel_missing_auth() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
@@ -49,7 +55,11 @@ async fn test_channel_missing_auth() {
 async fn test_channel_invalid_token() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
@@ -76,13 +86,17 @@ async fn test_channel_invalid_token() {
 async fn test_channel_wrong_key() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
 
     let wrong_key = b"wrong-key-padded-to-32-bytes!!!!";
-    let token = auth::sign(&make_test_claims(), wrong_key).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), wrong_key);
 
     let app = test::init_service(
         App::new()
@@ -104,7 +118,11 @@ async fn test_channel_wrong_key() {
 async fn test_channel_valid_flow() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
@@ -119,7 +137,7 @@ async fn test_channel_valid_flow() {
         .mount(&mock_server)
         .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let app = test::init_service(
         App::new()

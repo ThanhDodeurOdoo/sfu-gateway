@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
-use sfu_gateway::auth;
-use sfu_gateway::balancer::Balancer;
 use sfu_gateway::config::SfuConfig;
-use sfu_gateway::handlers::AppState;
+use sfu_gateway::http::{AppState, Claims, sign};
+use sfu_gateway::routing::Balancer;
 
 pub const GATEWAY_KEY: &[u8] = b"gateway-key-padded-to-32-bytes!!";
-pub const SFU_KEY: &[u8] = b"sfu-key-padded-to-32-bytes-here!";
 
-pub fn make_test_claims() -> auth::Claims {
-    auth::Claims {
+pub fn make_test_claims() -> Claims {
+    Claims {
         iss: "test-channel-123".to_string(),
         key: Some("encryption-key".to_string()),
         exp: Some(
@@ -36,10 +34,6 @@ pub fn create_app_state(
     })
 }
 
-pub fn single_sfu(address: &str, region: Option<&str>, key: &[u8]) -> Vec<SfuConfig> {
-    vec![SfuConfig {
-        address: address.to_string(),
-        region: region.map(String::from),
-        key: key.to_vec(),
-    }]
+pub fn sign_claims(claims: &Claims, key: &[u8]) -> String {
+    sign(claims, key).expect("signing should work")
 }

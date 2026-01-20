@@ -7,16 +7,22 @@ use serde_json::json;
 use wiremock::matchers::{header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{GATEWAY_KEY, SFU_KEY, create_app_state, make_test_claims, single_sfu};
-use sfu_gateway::auth;
-use sfu_gateway::balancer::Balancer;
-use sfu_gateway::handlers::{AppState, channel};
+use common::{GATEWAY_KEY, create_app_state, make_test_claims, sign_claims};
+use sfu_gateway::config::SfuConfig;
+use sfu_gateway::http::{AppState, channel};
+use sfu_gateway::routing::Balancer;
+
+const SFU_KEY: &[u8] = b"sfu-key-padded-to-32-bytes-here!";
 
 #[actix_web::test]
 async fn test_forwarded_for_no_proxy() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
@@ -32,7 +38,7 @@ async fn test_forwarded_for_no_proxy() {
         .mount(&mock_server)
         .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let app = test::init_service(
         App::new()
@@ -55,7 +61,11 @@ async fn test_forwarded_for_no_proxy() {
 async fn test_forwarded_for_with_proxy() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         true,
     );
@@ -71,7 +81,7 @@ async fn test_forwarded_for_with_proxy() {
         .mount(&mock_server)
         .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let app = test::init_service(
         App::new()
@@ -94,7 +104,11 @@ async fn test_forwarded_for_with_proxy() {
 async fn test_query_params_forwarded_except_region() {
     let mock_server = MockServer::start().await;
     let state = create_app_state(
-        single_sfu(&mock_server.uri(), Some("eu-west"), SFU_KEY),
+        vec![SfuConfig {
+            address: mock_server.uri(),
+            region: Some("eu-west".to_string()),
+            key: SFU_KEY.to_vec(),
+        }],
         GATEWAY_KEY,
         false,
     );
@@ -109,7 +123,7 @@ async fn test_query_params_forwarded_except_region() {
         .mount(&mock_server)
         .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let app = test::init_service(
         App::new()
@@ -136,7 +150,7 @@ async fn test_sfu_unavailable() {
         trust_proxy: false,
     });
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let app = test::init_service(
         App::new()

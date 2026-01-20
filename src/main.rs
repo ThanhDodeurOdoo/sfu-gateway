@@ -5,10 +5,9 @@ use clap::Parser;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use sfu_gateway::balancer::Balancer;
 use sfu_gateway::config::{GatewayConfig, NodeData};
-use sfu_gateway::handlers;
-use sfu_gateway::handlers::AppState;
+use sfu_gateway::http::{self, AppState};
+use sfu_gateway::routing::Balancer;
 
 #[derive(Parser, Debug)]
 #[command(name = "sfu-gateway")]
@@ -78,8 +77,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .route("/noop", web::get().to(handlers::noop))
-            .route("/v1/channel", web::get().to(handlers::channel))
+            .route("/noop", web::get().to(http::noop))
+            .route("/v1/channel", web::get().to(http::channel))
     })
     .bind(&bind_addr)?
     .run()

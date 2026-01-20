@@ -5,10 +5,9 @@ use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{GATEWAY_KEY, create_app_state, make_test_claims};
-use sfu_gateway::auth;
+use common::{GATEWAY_KEY, create_app_state, make_test_claims, sign_claims};
 use sfu_gateway::config::SfuConfig;
-use sfu_gateway::handlers::channel;
+use sfu_gateway::http::channel;
 
 const SFU_KEY_EU: &[u8] = b"sfu-key-eu-padded-to-32-bytes!!";
 const SFU_KEY_US: &[u8] = b"sfu-key-us-padded-to-32-bytes!!";
@@ -60,7 +59,7 @@ async fn test_region_routing_selects_correct_sfu() {
     )
     .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let req = test::TestRequest::get()
         .uri("/v1/channel?region=eu-west")
@@ -94,7 +93,7 @@ async fn test_country_routing_maps_to_region() {
     )
     .await;
 
-    let token = auth::sign(&make_test_claims(), GATEWAY_KEY).expect("signing should work");
+    let token = sign_claims(&make_test_claims(), GATEWAY_KEY);
 
     let req = test::TestRequest::get()
         .uri("/v1/channel?country=FR")

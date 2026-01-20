@@ -4,9 +4,9 @@ use actix_web::{HttpRequest, HttpResponse, web};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
-use crate::auth;
-use crate::balancer::Balancer;
-use crate::geo::country_to_region;
+use super::auth;
+use crate::routing::Balancer;
+use crate::routing::country_to_region;
 
 pub struct AppState {
     pub balancer: Balancer,
