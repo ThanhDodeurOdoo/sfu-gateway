@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use actix_web::{App, HttpServer, web};
 use clap::Parser;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -36,6 +35,7 @@ async fn main() -> std::io::Result<()> {
     });
 
     // Load secrets: prioritize environment variable JSON over local file
+    // TODO: replace it with self registing SFUs (see roadmap)
     let nodes = if let Some(ref nodes_json) = gateway.nodes {
         info!("Loading SFU nodes from environment variable");
         NodeData::from_json(nodes_json).unwrap_or_else(|e| {
@@ -74,13 +74,5 @@ async fn main() -> std::io::Result<()> {
 
     let bind_addr = format!("{}:{}", gateway.bind, gateway.port);
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(state.clone()))
-            .route("/noop", web::get().to(http::noop))
-            .route("/v1/channel", web::get().to(http::channel))
-    })
-    .bind(&bind_addr)?
-    .run()
-    .await
+    http::create_server(state, &bind_addr)?.await
 }

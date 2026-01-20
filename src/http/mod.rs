@@ -1,5 +1,5 @@
 mod auth;
-mod handlers;
+mod server;
 
 pub use auth::{AuthError, Claims, extract_token, sign, verify};
-pub use handlers::{AppState, ChannelQuery, ChannelResponse, channel, noop};
+pub use server::{AppState, ChannelQuery, ChannelResponse, channel, create_server, noop};

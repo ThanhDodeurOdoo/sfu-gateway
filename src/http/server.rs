@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use actix_web::{HttpRequest, HttpResponse, web};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, web};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
-use super::auth;
+use super::auth::{extract_token, sign, verify};
 use crate::routing::Balancer;
 use crate::routing::country_to_region;
 
@@ -108,7 +108,7 @@ pub async fn channel(
 
     debug!(auth_header = ?auth_header, "Received Authorization header");
 
-    let token = match auth::extract_token(auth_header) {
+    let token = match extract_token(auth_header) {
         Ok(t) => t,
         Err(e) => {
             warn!(auth_header = ?auth_header, "Missing authorization: {}", e);
@@ -117,7 +117,7 @@ pub async fn channel(
         }
     };
 
-    let claims = match auth::verify(token, &state.gateway_key) {
+    let claims = match verify(token, &state.gateway_key) {
         Ok(c) => c,
         Err(e) => {
             warn!("Invalid JWT: {}", e);
@@ -142,7 +142,7 @@ pub async fn channel(
     info!(sfu_address = %sfu.address, "Selected SFU");
 
     // 3. Re-sign the JWT with the selected SFU's key
-    let sfu_token = match auth::sign(&claims, &sfu.key) {
+    let sfu_token = match sign(&claims, &sfu.key) {
         Ok(t) => t,
         Err(e) => {
             warn!("Failed to sign JWT for SFU: {}", e);
@@ -199,6 +199,25 @@ pub async fn channel(
             HttpResponse::BadGateway().json(serde_json::json!({ "error": "failed to contact SFU" }))
         }
     }
+}
+
+/// Create and configure the HTTP server with all routes.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to bind to the specified address.
+pub fn create_server(
+    state: Arc<AppState>,
+    bind_addr: &str,
+) -> std::io::Result<actix_web::dev::Server> {
+    Ok(HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(state.clone()))
+            .route("/noop", web::get().to(noop))
+            .route("/v1/channel", web::get().to(channel))
+    })
+    .bind(bind_addr)?
+    .run())
 }
 
 #[cfg(test)]
