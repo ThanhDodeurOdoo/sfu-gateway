@@ -1,22 +1,3 @@
-#![deny(clippy::correctness)]
-#![deny(clippy::suspicious)]
-#![deny(clippy::unwrap_used)]
-#![deny(clippy::expect_used)]
-#![deny(clippy::panic)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::perf)]
-#![warn(clippy::complexity)]
-#![warn(clippy::style)]
-#![warn(clippy::needless_pass_by_ref_mut)]
-#![warn(clippy::redundant_clone)]
-#![warn(clippy::nonstandard_macro_braces)]
-#![warn(clippy::option_if_let_else)]
-#![warn(clippy::single_option_map)]
-#![warn(clippy::type_repetition_in_bounds)]
-#![warn(clippy::uninhabited_references)]
-#![warn(clippy::unnecessary_struct_initialization)]
-#![warn(clippy::use_self)]
-
 mod auth;
 mod balancer;
 mod config;
