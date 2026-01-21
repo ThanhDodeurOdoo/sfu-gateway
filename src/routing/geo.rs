@@ -1,3 +1,8 @@
+// TODO: The priority order between regions that is currently calculated with a haversine distance
+// could be changed to a (roughly guessed and hard-coded) latency table.
+// Or we could make static lookup tables for the regions fallback priority.
+// experiement if we can have a compact representation of this data.
+
 /// Maps ISO 3166-1 alpha-2 country codes to SFU regions.
 #[must_use]
 pub fn country_to_region(country_code: &str) -> Option<&'static str> {

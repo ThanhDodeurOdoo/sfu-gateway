@@ -75,7 +75,7 @@ struct RawNodeData {
 struct RawSfuConfig {
     address: String,
     #[serde(default)]
-    region: Option<String>,
+    region: Option<String>, // TODO: region should be a well defined type, not all strings can be a region.
     key: String,
 }
 

@@ -9,9 +9,14 @@ The key check should be removed from the `/disconnect` route. Only the IP check 
 That would allow the Odoo code to remain unchanged: it still signs the payload with a key, it's just wrong.
 But we can ignore that and still peek into the JWT (see https://github.com/odoo/sfu/pull/21 ) for backwards compatibility.
 
-## SFU Self-Registration
+## SFU Self-Registration or External Registry
 
-Allow SFUs to register themselves with the gateway and periodically report their load. This push-based model is more scalable than polling and enables dynamic SFU discovery. The Gateway wouldn't need to be fed with a static list of SFUs.
+Allow SFUs to register themselves with the gateway and periodically report their load.
+Or use an external registry (like what Odoo probably already has). Just need create a
+health route.
+
+Odoo registry can provide a /sfu-list endpoint, with a Etag (must change etag intelligently to
+still provide up to date load information).
 
 ### Implementation
 
